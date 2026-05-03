@@ -144,7 +144,7 @@ function getCountdown() {
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(0);
-  const [activeFund, setActiveFund] = useState(0);
+  const [activeFund, setActiveFund] = useState(null);
   const [countdown, setCountdown] = useState(() => getCountdown());
 
   useEffect(() => {
