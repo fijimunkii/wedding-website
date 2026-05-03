@@ -7,7 +7,6 @@ import venmoQr from '../assets/venmo-qr-display.png';
 import zelleQr from '../assets/zelle-qr-display.jpg';
 
 const weddingDate = new Date('2026-07-18T14:00:00-04:00');
-const zolaRsvpUrl = 'https://www.zola.com/wedding/harrisonandcassie2026';
 const venmoUrl = 'https://venmo.com/code?user_id=1409808972382208459';
 const zelleUrl =
   'https://enroll.zellepay.com/qr-codes?data=ewogICJuYW1lIiA6ICJIQVJSSVNPTiIsCiAgInRva2VuIiA6ICJoYXJyaXNvbnBvd2Vyc0BnbWFpbC5jb20iLAogICJhY3Rpb24iIDogInBheW1lbnQiCn0=';
@@ -17,7 +16,6 @@ const venueMapUrl =
 const navItems = [
   { label: 'Home', href: '#home' },
   { label: 'Schedule', href: '#schedule' },
-  { label: 'RSVP', href: zolaRsvpUrl, external: true },
   { label: 'Registry', href: '#registry' },
   { label: 'FAQs', href: '#faqs' },
 ];
@@ -209,14 +207,6 @@ function App() {
             <div className="hero-actions">
               <a className="hero-link" href="#schedule">
                 View Schedule
-              </a>
-              <a
-                className="hero-link hero-link-secondary"
-                href={zolaRsvpUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                RSVP on Zola
               </a>
             </div>
           </div>
