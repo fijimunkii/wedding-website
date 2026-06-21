@@ -244,10 +244,13 @@ h3 {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.hero-link-small {
-  min-width: 86px;
-  padding-right: 18px;
-  padding-left: 18px;
+.hero-link-icon {
+  width: 48px;
+  min-width: 48px;
+  padding-right: 0;
+  padding-left: 0;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 @keyframes hero-fade-in {

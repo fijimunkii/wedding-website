@@ -400,18 +400,20 @@ function App() {
             <h1>Cassie & Harrison</h1>
             <div className="hero-actions">
               <a className="hero-link" href="#schedule">
-                View Schedule
+                Schedule
               </a>
               <button className="hero-link" type="button" onClick={() => openGallery()}>
-                View Gallery
+                Gallery
               </button>
               <button
-                className="hero-link hero-link-small"
+                className="hero-link hero-link-icon"
                 type="button"
+                aria-label={isHeroPaused ? 'Play slideshow' : 'Pause slideshow'}
                 aria-pressed={isHeroPaused}
                 onClick={toggleHeroPlayback}
+                title={isHeroPaused ? 'Play slideshow' : 'Pause slideshow'}
               >
-                {isHeroPaused ? 'Play' : 'Pause'}
+                <span aria-hidden="true">{isHeroPaused ? '▶' : '⏸'}</span>
               </button>
             </div>
           </div>
