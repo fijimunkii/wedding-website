@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import heroImage from '../assets/hero.jpg';
 import floralLeft from '../assets/floral-left.png';
 import floralRight from '../assets/floral-right.png';
 import flourishImage from '../assets/footer-flourish.png';
 import venmoQr from '../assets/venmo-qr-display.png';
 import zelleQr from '../assets/zelle-qr-display.jpg';
+import { galleryPhotos } from './galleryPhotos';
 
 const weddingDate = new Date('2026-07-18T14:00:00-04:00');
 const venmoUrl = 'https://venmo.com/code?user_id=1409808972382208459';
@@ -12,10 +12,55 @@ const zelleUrl =
   'https://enroll.zellepay.com/qr-codes?data=ewogICJuYW1lIiA6ICJIQVJSSVNPTiIsCiAgInRva2VuIiA6ICJoYXJyaXNvbnBvd2Vyc0BnbWFpbC5jb20iLAogICJhY3Rpb24iIDogInBheW1lbnQiCn0=';
 const venueMapUrl =
   'https://www.google.com/maps/search/?api=1&query=40.96199320,-72.18047680&query_place_id=ChIJ-Xbctfu66IkRRU1M7J8G3aU';
+const heroImageCache = new Map();
+
+function preloadHeroImage(src) {
+  if (!src || typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  if (!heroImageCache.has(src)) {
+    heroImageCache.set(
+      src,
+      new Promise((resolve) => {
+        const image = new Image();
+        const finish = () => {
+          if (image.decode) {
+            image.decode().then(resolve).catch(resolve);
+            return;
+          }
+
+          resolve();
+        };
+
+        image.decoding = 'async';
+        image.onload = finish;
+        image.onerror = resolve;
+        image.src = src;
+
+        if (image.complete) {
+          finish();
+        }
+      }),
+    );
+  }
+
+  return heroImageCache.get(src);
+}
+
+function getHeroPhotoStyle(photo) {
+  return {
+    '--photo-focus-x': `${photo.desktopFocus.x}%`,
+    '--photo-focus-y': `${photo.desktopFocus.y}%`,
+    '--photo-mobile-focus-x': `${photo.mobileFocus.x}%`,
+    '--photo-mobile-focus-y': `${photo.mobileFocus.y}%`,
+  };
+}
 
 const navItems = [
   { label: 'Home', href: '#home' },
   { label: 'Schedule', href: '#schedule' },
+  { label: 'Gallery', action: 'gallery' },
   { label: 'Registry', href: '#registry' },
   { label: 'FAQs', href: '#faqs' },
 ];
@@ -145,7 +190,34 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(0);
   const [activeFund, setActiveFund] = useState(null);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [previousHeroIndex, setPreviousHeroIndex] = useState(null);
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(0);
   const [countdown, setCountdown] = useState(() => getCountdown());
+
+  const openGallery = (index = heroIndex) => {
+    setActivePhoto(index);
+    setGalleryOpen(true);
+    setMenuOpen(false);
+  };
+
+  const closeGallery = () => {
+    setGalleryOpen(false);
+  };
+
+  const showPreviousPhoto = () => {
+    setActivePhoto((index) => (index === 0 ? galleryPhotos.length - 1 : index - 1));
+  };
+
+  const showNextPhoto = () => {
+    setActivePhoto((index) => (index + 1) % galleryPhotos.length);
+  };
+
+  const toggleHeroPlayback = () => {
+    setIsHeroPaused((paused) => !paused);
+  };
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -154,6 +226,98 @@ function App() {
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion || isHeroPaused) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const nextIndex = (heroIndex + 1) % galleryPhotos.length;
+
+      preloadHeroImage(galleryPhotos[nextIndex].src).finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setPreviousHeroIndex(heroIndex);
+        setHeroIndex(nextIndex);
+      });
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [heroIndex, isHeroPaused]);
+
+  useEffect(() => {
+    if (previousHeroIndex === null) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setPreviousHeroIndex(null);
+    }, 1300);
+
+    return () => window.clearTimeout(timer);
+  }, [previousHeroIndex]);
+
+  useEffect(() => {
+    const nextPhoto = galleryPhotos[(heroIndex + 1) % galleryPhotos.length];
+    preloadHeroImage(nextPhoto.src);
+  }, [heroIndex]);
+
+  useEffect(() => {
+    const preloadRemainingImages = () => {
+      galleryPhotos.forEach((photo, index) => {
+        if (index !== heroIndex) {
+          preloadHeroImage(photo.src);
+        }
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(preloadRemainingImages);
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timer = window.setTimeout(preloadRemainingImages, 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!galleryOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeGallery();
+      }
+
+      if (event.key === 'ArrowLeft') {
+        showPreviousPhoto();
+      }
+
+      if (event.key === 'ArrowRight') {
+        showNextPhoto();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [galleryOpen]);
 
   const countdownItems = useMemo(
     () => [
@@ -164,6 +328,12 @@ function App() {
     ],
     [countdown],
   );
+
+  const currentHeroPhoto = galleryPhotos[heroIndex];
+  const previousHeroPhoto =
+    previousHeroIndex === null || previousHeroIndex === heroIndex
+      ? null
+      : galleryPhotos[previousHeroIndex];
 
   return (
     <>
@@ -183,23 +353,47 @@ function App() {
           <span />
         </button>
         <nav className={menuOpen ? 'nav nav-open' : 'nav'} aria-label="Primary navigation">
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              target={item.external ? '_blank' : undefined}
-              rel={item.external ? 'noreferrer' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              {item.label}
-            </a>
-          ))}
+          {navItems.map((item) =>
+            item.action === 'gallery' ? (
+              <button key={item.label} type="button" onClick={() => openGallery()}>
+                {item.label}
+              </button>
+            ) : (
+              <a
+                key={item.href}
+                href={item.href}
+                target={item.external ? '_blank' : undefined}
+                rel={item.external ? 'noreferrer' : undefined}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </a>
+            ),
+          )}
         </nav>
       </header>
 
       <main>
         <section id="home" className="hero" aria-label="Home">
-          <img src={heroImage} alt="Cassie and Harrison" className="hero-image" />
+          <div className="hero-slides" aria-hidden="true">
+            {previousHeroPhoto ? (
+              <img
+                key={`previous-${previousHeroPhoto.src}`}
+                src={previousHeroPhoto.src}
+                alt=""
+                className="hero-image exiting"
+                style={getHeroPhotoStyle(previousHeroPhoto)}
+              />
+            ) : null}
+            <img
+              key={`current-${currentHeroPhoto.src}`}
+              src={currentHeroPhoto.src}
+              alt=""
+              className={previousHeroPhoto ? 'hero-image active entering' : 'hero-image active'}
+              style={getHeroPhotoStyle(currentHeroPhoto)}
+              fetchPriority={heroIndex === 0 ? 'high' : undefined}
+            />
+          </div>
           <div className="hero-overlay" />
           <div className="hero-content">
             <p className="eyebrow">July 18, 2026 · East Hampton, New York</p>
@@ -208,6 +402,17 @@ function App() {
               <a className="hero-link" href="#schedule">
                 View Schedule
               </a>
+              <button className="hero-link" type="button" onClick={() => openGallery()}>
+                View Gallery
+              </button>
+              <button
+                className="hero-link hero-link-small"
+                type="button"
+                aria-pressed={isHeroPaused}
+                onClick={toggleHeroPlayback}
+              >
+                {isHeroPaused ? 'Play' : 'Pause'}
+              </button>
             </div>
           </div>
         </section>
@@ -357,6 +562,50 @@ function App() {
         <img src={flourishImage} alt="" />
         <p>Cassie & Harrison · July 18, 2026</p>
       </footer>
+
+      {galleryOpen ? (
+        <div className="gallery-modal" role="dialog" aria-modal="true" aria-label="Photo gallery">
+          <button className="gallery-close" type="button" aria-label="Close gallery" onClick={closeGallery}>
+            ×
+          </button>
+          <button
+            className="gallery-arrow gallery-arrow-previous"
+            type="button"
+            aria-label="Previous photo"
+            onClick={showPreviousPhoto}
+          >
+            ‹
+          </button>
+          <figure className="gallery-frame">
+            <img src={galleryPhotos[activePhoto].src} alt={galleryPhotos[activePhoto].alt} />
+            <figcaption>
+              {activePhoto + 1} / {galleryPhotos.length}
+            </figcaption>
+          </figure>
+          <button
+            className="gallery-arrow gallery-arrow-next"
+            type="button"
+            aria-label="Next photo"
+            onClick={showNextPhoto}
+          >
+            ›
+          </button>
+          <div className="gallery-thumbnails" aria-label="Gallery thumbnails">
+            {galleryPhotos.map((photo, index) => (
+              <button
+                key={photo.thumb}
+                type="button"
+                className={index === activePhoto ? 'active' : ''}
+                aria-label={`View photo ${index + 1}`}
+                aria-current={index === activePhoto ? 'true' : undefined}
+                onClick={() => setActivePhoto(index)}
+              >
+                <img src={photo.thumb} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
